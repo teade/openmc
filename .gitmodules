@@ -18,5 +18,5 @@
 	url = https://github.com/catchorg/Catch2.git
 [submodule "n1s_project"]
 	path = n1s_project
-	url = https://git.ccfe.ac.uk/neutronics/n1s_project/
+	url = git@git.ccfe.ac.uk:neutronics/n1s_project.git
 	branch = c_bindings
