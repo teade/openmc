@@ -52,7 +52,7 @@ public:
   //! \param u Direction of the secondary particle
   //! \param E Energy of the secondary particle in [eV]
   //! \param type Particle type
-  void create_secondary(double wgt, Direction u, double E, ParticleType type);
+  void create_secondary(double wgt, Direction u, double E, ParticleType type, double decay_time=0);
 
   //! initialize from a source site
   //

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 project(openmc C CXX)
 
+enable_language(Fortran)
+
 # Set version numbers
 set(OPENMC_VERSION_MAJOR 0)
 set(OPENMC_VERSION_MINOR 13)
@@ -12,6 +14,8 @@ configure_file(include/openmc/version.h.in "${CMAKE_BINARY_DIR}/include/openmc/v
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-line-length-none -fopenmp")
 
 # Set module path
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
@@ -361,6 +365,7 @@ list(APPEND libopenmc_SOURCES
   src/message_passing.cpp
   src/mgxs.cpp
   src/mgxs_interface.cpp
+  src/n1s.cpp
   src/ncrystal_interface.cpp
   src/nuclide.cpp
   src/output.cpp
@@ -430,6 +435,10 @@ list(APPEND libopenmc_SOURCES
   src/xml_interface.cpp
   src/xsdata.cpp)
 
+# Add n1s library
+add_subdirectory(${PROJECT_SOURCE_DIR}/n1s_project)
+include_directories(${PROJECT_BINARY_DIR}/n1s_project/fhash ${PROJECT_SOURCE_DIR}/n1s_project/decay_reader)
+  
 # Add bundled external dependencies
 list(APPEND libopenmc_SOURCES
   src/external/quartic_solver.cpp
@@ -553,7 +562,7 @@ add_executable(openmc src/main.cpp)
 add_executable(OpenMC::openmc ALIAS openmc)
 target_compile_options(openmc PRIVATE ${cxxflags})
 target_include_directories(openmc PRIVATE ${CMAKE_BINARY_DIR}/include)
-target_link_libraries(openmc libopenmc)
+target_link_libraries(openmc PUBLIC libopenmc n1s)
 
 # Ensure C++14 standard is used and turn off GNU extensions
 target_compile_features(openmc PUBLIC cxx_std_14)

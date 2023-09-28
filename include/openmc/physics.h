@@ -96,6 +96,10 @@ void inelastic_scatter(const Nuclide& nuc, const Reaction& rx, Particle& p);
 
 void sample_secondary_photons(Particle& p, int i_nuclide);
 
+void sample_decay_photons(Particle& p, int i_nuclide);
+
+void sample_mt_reaction(int i_nuclide, Particle& p, int* i_rx, int* i_product);
+
 //! Split or Roulette particles based their weight and the lower weight window
 //! bound.
 //

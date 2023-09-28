@@ -73,7 +73,7 @@ void Particle::move_distance(double length)
 }
 
 void Particle::create_secondary(
-  double wgt, Direction u, double E, ParticleType type)
+  double wgt, Direction u, double E, ParticleType type, double decay_time)
 {
   // If energy is below cutoff for this particle, don't create secondary
   // particle
@@ -89,7 +89,12 @@ void Particle::create_secondary(
   bank.r = r();
   bank.u = u;
   bank.E = settings::run_CE ? E : g();
-  bank.time = time();
+  
+  if(decay_time != 0){
+    bank.time = decay_time;
+  } else{
+    bank.time = time();
+  }
 
   n_bank_second() += 1;
 }

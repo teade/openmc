@@ -25,6 +25,7 @@
 #include "openmc/tallies/tally.h"
 #include "openmc/thermal.h"
 #include "openmc/weight_windows.h"
+#include "openmc/n1s.h"
 
 #include <fmt/core.h>
 
@@ -128,6 +129,9 @@ void sample_neutron_reaction(Particle& p)
   // Create secondary photons
   if (settings::photon_transport) {
     sample_secondary_photons(p, i_nuclide);
+    if (settings::n1s_on) {
+      sample_decay_photons(p, i_nuclide);
+    }
   }
 
   // If survival biasing is being used, the following subroutine adjusts the
@@ -1185,5 +1189,99 @@ void sample_secondary_photons(Particle& p, int i_nuclide)
     p.create_secondary(wgt, u, E, ParticleType::photon);
   }
 }
+
+void sample_decay_photons(Particle& p, int i_nuclide) 
+{
+
+  // std::cout << "Sampling decay photons" <<std::endl;
+  
+  int i_rx;
+  int i_product;
+  sample_mt_reaction(i_nuclide, p, &i_rx, &i_product);
+
+  // Get the parent nuclide and reaction
+  auto& parent = data::nuclides[i_nuclide];
+  auto& reaction = parent->reactions_[i_rx];
+
+  // if this is an elastic scatter reaction there is no transmutation so skip.
+  if(reaction->mt_ == 2)
+    return;
+
+  // create parent ZAID
+  int pzaid = ((parent->Z_*1000 + parent->A_)*10)+parent->metastable_;
+  int num_gammas;
+  int * gamma_zaid;
+  double * gamma_energy;
+  double * weight;
+
+  // Get the decay times
+  vector<double> decay_vec = model::n1s_data[0]->t();
+  double decay_times[decay_vec.size()];
+  int num_times = sizeof(decay_times)/sizeof(decay_times[0]);
+
+  std::copy(decay_vec.begin(), decay_vec.end(), decay_times);
+ // std::cout << "decay times c++ " << *decay_times <<std::endl;
+
+  c_sample_meta_decay_gammas(pzaid, reaction->mt_, p.E(), p.current_seed(), 
+        num_times, decay_times, 1, &num_gammas, &gamma_energy, 
+        &weight, &gamma_zaid, NULL);
+  
+  // if (num_gammas > 0) {
+  // std::cout << "pzaid : " << pzaid << "  mt_num : " << reaction->mt_ << std::endl;
+  // std::cout << "  Number of Gammas: " << num_gammas << " " <<  std::endl;
+  //       for (int i=0; i<num_gammas  ; i++) {
+  //           std::cout << i << "    gamma ZAID: "<< gamma_zaid[i]<<"    Gamma Number: "<< i+1 << ", Gamma Energy (MeV): " << gamma_energy[i] << std::endl;
+  //           for (int j=0; j<num_times; j++) {
+  //               std::cout << j << "      Time (s): " << decay_times[j] << ", " << "Weight: " << weight[i*num_times + j] << std::endl;
+  //           }
+  //      }
+  // }
+
+
+  // Create decay photons at the correct time
+  for (int n = 0; n<num_gammas; n++)
+  {
+    for (int t = 0; t<num_times; t++){
+    
+      double mu = uniform_distribution(-1., 1., p.current_seed());
+      Direction u = rotate_angle(p.u(), mu, nullptr, p.current_seed());
+
+      if (p.wgt()*weight[n*num_times + t] > 1e-50) {
+          p.create_secondary(p.wgt()*weight[n*num_times + t], u, (gamma_energy[n]*1e6), ParticleType::photon, decay_times[t]);
+      }
+    }
+  }
+}
+
+void sample_mt_reaction(int i_nuclide, Particle& p, int* i_rx, int* i_product)
+{
+  // Get grid index of the reaction that has occured
+  const auto& micro = p.neutron_xs(i_nuclide);
+  double cutoff = prn(p.current_seed()) * micro.total;
+  double prob = 0.0;
+  double sum_xs = 0.0;
+  // Loop through each reaction type
+  const auto& nuc {data::nuclides[i_nuclide]};
+
+  for (int i = 0; i < nuc->reactions_.size(); ++i) {
+    // Evaluate neutron cross section
+    const auto& rx = nuc->reactions_[i];
+    double xs = rx->xs(micro);
+
+    // if cross section is zero for this reaction or if this is a reaction which is included in the sum of another, skip it
+    if (xs == 0.0 || rx->mt_ > 200)
+      continue;
+
+    // add to cumulative probability
+    prob += xs;
+
+    // return reaction if the cumulative probability is above the random cutoff
+    *i_rx = i;
+    if (prob > cutoff)
+      return;
+  }
+
+}
+
 
 } // namespace openmc

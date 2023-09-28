@@ -31,6 +31,7 @@
 #include "openmc/volume_calc.h"
 #include "openmc/weight_windows.h"
 #include "openmc/xml_interface.h"
+#include "openmc/n1s.h"
 
 namespace openmc {
 
@@ -76,6 +77,7 @@ bool urr_ptables_on {true};
 bool weight_windows_on {false};
 bool write_all_tracks {false};
 bool write_initial_source {false};
+bool n1s_on {false};
 
 std::string path_cross_sections;
 std::string path_input;
@@ -967,6 +969,17 @@ void read_settings_xml(pugi::xml_node root)
       }
     }
   }
+
+  // N1S option
+  if (check_for_node(root, "N1S")) {
+    settings::n1s_on = true;
+    std::cout << "N1S method on" << std::endl;
+    pugi::xml_node node = root.child("N1S");   
+
+    model::n1s_data.push_back(make_unique<n1s_info>(node));
+
+  }
+
 }
 
 void free_memory_settings()
